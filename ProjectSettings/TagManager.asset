@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Pizarra
   - Whiteboard
+  - PizarraMain
   layers:
   - Default
   - TransparentFX

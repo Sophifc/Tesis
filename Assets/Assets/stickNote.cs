@@ -42,4 +42,23 @@ public class StickyNote : MonoBehaviour
         }
         
     }
+
+    // Pegar y despegar reuqerimientos cargados en post-its
+    public void Stick()
+    {
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            Debug.Log(gameObject.name + " está ahora pegado (Kinematic).");
+        }
+    }
+
+    public void Unstick()
+    {
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            Debug.Log(gameObject.name + " ha sido despegado.");
+        }
+    }
 }
