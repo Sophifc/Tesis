@@ -8,7 +8,7 @@ public class RequirementLoader : MonoBehaviourPunCallbacks
     [Header("Referencias de la Escena")]
     public GameObject postItPrefab; // Arrastra aquí tu prefab de Post-it
     public Transform whiteboardParent; // Arrastra aquí el objeto de la pizarra
-    private PhotonView photonView;
+    //private PhotonView photonView;
 
     //[Header("Configuración de Carga")]
     //public string filePath = "C:\\Users\\Tokyotech PC\\Desktop\\importar.txt";
@@ -21,7 +21,7 @@ public class RequirementLoader : MonoBehaviourPunCallbacks
 
     void Awake()
     {
-        photonView = GetComponent<PhotonView>();
+        //photonView = GetComponent<PhotonView>();
     }
 
     void Start()
@@ -37,7 +37,8 @@ public class RequirementLoader : MonoBehaviourPunCallbacks
                 if (fileContent != null)
                 {
                     // Llamamos a un RPC para que TODOS ejecuten la carga
-                    photonView.RPC("Rpc_LoadRequirements", RpcTarget.All, fileContent);
+                    //photonView.RPC("Rpc_LoadRequirements", RpcTarget.All, fileContent);
+                    photonView.RPC("Rpc_LoadRequirements", RpcTarget.AllBuffered, fileContent);
                 }
             }
         }
