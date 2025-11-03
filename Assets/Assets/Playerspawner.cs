@@ -3,16 +3,27 @@ using Photon.Pun;
 
 public class PlayerSpawner : MonoBehaviour
 {
-    // En el Inspector, arrastraremos nuestro prefab de "XR Origin" aquí.
-    // Pero para Photon, es mejor usar el nombre del prefab en la carpeta Resources.
+    public string playerPrefabName = "XR Origin (XR Rig) (1)";
 
-    public string playerPrefabName = "XR Origin (XR Rig) (1)"; // ¡El nombre debe ser exacto!
+    // ¡NUEVA VARIABLE!
+    [Header("Punto de Spawn")]
+    [Tooltip("Arrastra aquí el objeto vacío que marca dónde debe aparecer el jugador")]
+    public Transform spawnPoint; // El "Transform" guarda tanto la posición como la rotación
 
     void Start()
     {
-        // Le decimos a Photon que cree una instancia de nuestro prefab para nosotros.
-        // Photon se encargará de crearlo en el mismo punto para todos los jugadores.
-        Debug.Log("Creando jugador desde Resources...");
-        PhotonNetwork.Instantiate(playerPrefabName, Vector3.zero, Quaternion.identity);
+        // Una comprobación para evitar errores
+        if (spawnPoint == null)
+        {
+            Debug.LogError("¡No se ha asignado un SpawnPoint al PlayerSpawner! El jugador aparecerá en (0,0,0).");
+            // Usamos la posición del propio Spawner como plan B
+            spawnPoint = this.transform;
+        }
+
+        Debug.Log("Creando jugador en el punto de spawn...");
+
+        // ¡LÍNEA MODIFICADA!
+        // Ahora usamos la posición Y la rotación de nuestro objeto SpawnPoint
+        PhotonNetwork.Instantiate(playerPrefabName, spawnPoint.position, spawnPoint.rotation);
     }
 }

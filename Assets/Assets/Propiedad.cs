@@ -6,10 +6,13 @@ using UnityEngine.InputSystem.XR; // Para el TrackedPoseDriver (seguimiento de c
 // Heredamos de MonoBehaviourPun para tener acceso a "photonView"
 public class AvatarOwnership : MonoBehaviourPun
 {
-    [Header("Objetos Visuales (Cuerpo)")]
-    public GameObject headVisuals; // Arrastra aquí la esfera de la cabeza
-    public GameObject leftHandVisuals; // Arrastra el modelo de la mano izquierda
-    public GameObject rightHandVisuals; // Arrastra el modelo de la mano derecha
+    [Header("Visuales Remotos (Solo los demás los ven)")]
+    public GameObject cabezaRemota; // Arrastra la esfera "HeadVisuals" aquí
+    public GameObject manoIzquierdaRemota; // Arrastra la esfera de la mano izq.
+    public GameObject manoDerechaRemota; // Arrastra el modelo de la mano derecha
+
+    [Header("Visuales Locales (Solo yo los veo)")]
+    public GameObject cuerpoLocal;
 
     void Start()
     {
@@ -19,36 +22,42 @@ public class AvatarOwnership : MonoBehaviourPun
 
         if (photonView.IsMine)
         {
-            // Este es MI avatar.
-            // No quiero ver mi propia cabeza o manos flotando delante de mis ojos.
-            if (headVisuals != null) headVisuals.SetActive(false);
-            if (leftHandVisuals != null) leftHandVisuals.SetActive(false);
-            if (rightHandVisuals != null) rightHandVisuals.SetActive(false);
+            // --- SOY YO (EL JUGADOR LOCAL) ---
+
+            // 1. Muestro mi cuerpo local
+            if (cuerpoLocal != null) cuerpoLocal.SetActive(true);
+
+            // 2. Oculto mis visuales remotos (no quiero ver mi propia cabeza-esfera)
+            if (cabezaRemota != null) cabezaRemota.SetActive(false);
+            if (manoIzquierdaRemota != null) manoIzquierdaRemota.SetActive(false);
+            if (manoDerechaRemota != null) manoDerechaRemota.SetActive(false);
         }
         else
         {
-            // Este es el avatar de OTRA PERSONA.
-            // Debemos deshabilitar todos los componentes que leen
-            // el hardware local (cámara, mandos, etc.), porque este
-            // avatar solo debe recibir datos de la red.
+            // --- ES OTRO JUGADOR (EL REMOTO) ---
 
-            // Desactiva la cámara y el "oído"
+            // 1. Oculto su cuerpo local (no necesito ver su "cuerpo falso")
+            if (cuerpoLocal != null) cuerpoLocal.SetActive(false);
+
+            // 2. Muestro sus visuales remotos (¡aquí está la clave!)
+            //    Asegúrate de que las esferas estén ACTIVADAS por defecto en el prefab.
+            if (cabezaRemota != null) cabezaRemota.SetActive(true);
+            if (manoIzquierdaRemota != null) manoIzquierdaRemota.SetActive(true);
+            if (manoDerechaRemota != null) manoDerechaRemota.SetActive(true);
+
+            // 3. Desactivo todos sus componentes de control (como ya hacíamos)
             GetComponentInChildren<Camera>().enabled = false;
             GetComponentInChildren<AudioListener>().enabled = false;
 
-            // Desactiva el seguimiento de la cabeza (TrackedPoseDriver)
             TrackedPoseDriver headTracker = GetComponentInChildren<TrackedPoseDriver>();
             if (headTracker != null) headTracker.enabled = false;
 
-            // Desactiva los mandos de interacción
             UnityEngine.XR.Interaction.Toolkit.XRController[] controllers = GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.XRController>();
             foreach (UnityEngine.XR.Interaction.Toolkit.XRController controller in controllers)
             {
                 controller.enabled = false;
             }
-            // ======================================================================
 
-            // Desactiva los rayos interactores
             XRRayInteractor[] interactors = GetComponentsInChildren<XRRayInteractor>();
             foreach (XRRayInteractor interactor in interactors)
             {

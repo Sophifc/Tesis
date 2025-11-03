@@ -1,7 +1,9 @@
 ﻿using UnityEngine;
 using System.IO;
+using Photon.Pun;
 using System.Collections; // Necesario para la Corutina
 
+[RequireComponent(typeof(PhotonView))] // <-- 2. Asegura que haya un PhotonView
 public class PizarraExporter : MonoBehaviour
 {
     [Tooltip("Asigna la Main Camera (la que está dentro del XR Origin)")]
@@ -14,6 +16,29 @@ public class PizarraExporter : MonoBehaviour
     public KeyCode testKey = KeyCode.E;
 
     private bool isCapturing = false; // Para evitar capturas múltiples
+    private PhotonView photonView; // <-- 3. AÑADE UNA VARIABLE PARA PHOTON VIEW
+
+    void Awake()
+    {
+        photonView = GetComponent<PhotonView>(); // <-- 4. OBTÉN LA REFERENCIA
+
+        // 5. LA COMPROBACIÓN MÁGICA
+        if (photonView.IsMine)
+        {
+            // Soy el jugador local. Encuentra mi cámara.
+            mainCamera = GetComponentInChildren<Camera>();
+            if (mainCamera == null)
+            {
+                Debug.LogError("¡PizarraExporter no pudo encontrar una Cámara en sus hijos!");
+            }
+        }
+        else
+        {
+            // No soy el jugador local. Desactiva este script por completo.
+            // Ya no dará errores ni intentará tomar fotos.
+            this.enabled = false;
+        }
+    }
 
     void Update()
     {
@@ -68,7 +93,8 @@ public class PizarraExporter : MonoBehaviour
 
         // 6. Guardar en disco (muy lento)
         string filename = $"BoardScreenshot_{System.DateTime.Now:yyyyMMdd_HHmmss}.png";
-        string folder = Application.persistentDataPath;
+        // Esto obtiene la carpeta "Mis Imágenes" en cualquier PC con Windows, Mac o Linux
+        string folder = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyPictures);
         string path = Path.Combine(folder, filename);
 
         // Para una solución perfecta, esto debería ir en un hilo separado
