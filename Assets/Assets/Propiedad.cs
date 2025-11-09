@@ -7,9 +7,10 @@ using UnityEngine.InputSystem.XR; // Para el TrackedPoseDriver (seguimiento de c
 public class AvatarOwnership : MonoBehaviourPun
 {
     [Header("Visuales Remotos (Solo los demás los ven)")]
-    public GameObject cabezaRemota; // Arrastra la esfera "HeadVisuals" aquí
-    public GameObject manoIzquierdaRemota; // Arrastra la esfera de la mano izq.
-    public GameObject manoDerechaRemota; // Arrastra el modelo de la mano derecha
+    //public GameObject cabezaRemota; // Arrastra la esfera "HeadVisuals" aquí
+    //public GameObject manoIzquierdaRemota; // Arrastra la esfera de la mano izq.
+    //public GameObject manoDerechaRemota; // Arrastra el modelo de la mano derecha
+    public GameObject avatarRemoto; // Aquí irá tu Avatar KayKit completo
 
     [Header("Visuales Locales (Solo yo los veo)")]
     public GameObject cuerpoLocal;
@@ -28,9 +29,7 @@ public class AvatarOwnership : MonoBehaviourPun
             if (cuerpoLocal != null) cuerpoLocal.SetActive(true);
 
             // 2. Oculto mis visuales remotos (no quiero ver mi propia cabeza-esfera)
-            if (cabezaRemota != null) cabezaRemota.SetActive(false);
-            if (manoIzquierdaRemota != null) manoIzquierdaRemota.SetActive(false);
-            if (manoDerechaRemota != null) manoDerechaRemota.SetActive(false);
+            if (avatarRemoto != null) avatarRemoto.SetActive(false); // Oculto el avatar completo
         }
         else
         {
@@ -41,9 +40,7 @@ public class AvatarOwnership : MonoBehaviourPun
 
             // 2. Muestro sus visuales remotos (¡aquí está la clave!)
             //    Asegúrate de que las esferas estén ACTIVADAS por defecto en el prefab.
-            if (cabezaRemota != null) cabezaRemota.SetActive(true);
-            if (manoIzquierdaRemota != null) manoIzquierdaRemota.SetActive(true);
-            if (manoDerechaRemota != null) manoDerechaRemota.SetActive(true);
+            if (avatarRemoto != null) avatarRemoto.SetActive(true); // Muestro el avatar completo
 
             // 3. Desactivo todos sus componentes de control (como ya hacíamos)
             GetComponentInChildren<Camera>().enabled = false;

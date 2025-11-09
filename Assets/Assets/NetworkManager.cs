@@ -72,6 +72,15 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         Debug.Log("Uniéndose a la sala: " + roomNameInput.text);
     }
 
+    /// <summary>
+    /// Cierra la aplicación del juego por completo.
+    /// </summary>
+    public void QuitGame()
+    {
+        Debug.Log("Cerrando la aplicación...");
+        Application.Quit();
+    }
+
     // --- CALLBACKS DE PHOTON ---
 
     // Se llama cuando nos unimos exitosamente a una sala
