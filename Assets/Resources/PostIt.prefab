@@ -449,6 +449,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b751aeb21373e4c45b74b8b4608d812b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  availableColors:
+  - {r: 1, g: 0.3915094, b: 0.71989846, a: 1}
+  - {r: 0, g: 0.8527436, b: 1, a: 1}
+  - {r: 1, g: 0.6993778, b: 0, a: 1}
+  scaleSpeed: 0.5
+  leftThumbstick:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Left Thumbstick
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 986199fb-5102-4e9f-8e06-ea4a7d6b2838
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: 6972639530819350904, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+  rightThumbstick:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Right Thumbstick
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: ad63e503-0097-4c66-b93c-a21462bf2163
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: -6493913391331992944, guid: c348712bda248c246b8c49b3db54643f,
+      type: 3}
+  simulatorMode: 1
 --- !u!114 &571651050020158645
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,128 +1,249 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
-using Photon.Pun; // <-- Asegúrate de que esté
-using TMPro; // <-- Asegúrate de que esté
+using Photon.Pun;
+using TMPro;
+using UnityEngine.InputSystem;
+
 
 
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(PhotonView))]
 public class StickyNote : MonoBehaviour, IPunInstantiateMagicCallback
 {
+    // --- Referencias de Componentes ---
     private XRGrabInteractable grabInteractable;
     private Rigidbody rb;
-    private bool isStuck = false;
+    private PhotonView photonView;
     private Vector3 correctScale;
+
+    [Header("ConfiguraciÃ³n de EdiciÃ³n")]
+    public Color[] availableColors = new Color[] {
+        new Color(1, 1, 0.8f),
+        new Color(1, 0.8f, 1),
+        new Color(0.8f, 1, 1)
+    };
+    public float scaleSpeed = 0.5f;
+
+    [Header("Acciones de Input (solo VR real)")]
+    public InputActionProperty leftThumbstick;   // Joystick Izquierdo
+    public InputActionProperty rightThumbstick;  // Joystick Derecho
+
+    [Header("Modo simulador (teclado para pruebas sin visor)")]
+    public bool simulatorMode = true;  // âœ… Activa esto para probar con teclado
+
+    // --- Variables Privadas de Estado ---
+    private XRBaseInteractor holdingInteractor = null;
+    private bool isTouchingPizarra = false;
+    private Transform lastPizarraTouched = null;
+    private int currentColorIndex = 0;
+    private bool joystickUsedX = false;
 
     private void Awake()
     {
         grabInteractable = GetComponent<XRGrabInteractable>();
         rb = GetComponent<Rigidbody>();
-        grabInteractable.selectExited.AddListener(OnReleased);
+        photonView = GetComponent<PhotonView>();
+
+        grabInteractable.selectEntered.AddListener(OnGrab);
+        grabInteractable.selectExited.AddListener(OnRelease);
+
+        // âœ… Inicializar escala base
+        correctScale = transform.localScale;
     }
 
-    void OnReleased(SelectExitEventArgs args)
+    private void Update()
     {
-        isStuck = false;
+        // Solo el "dueÃ±o" del Post-it puede modificarlo
+        if (holdingInteractor != null && photonView.IsMine)
+        {
+            // ==========================================================
+            // --- MODO SIMULADOR ---
+            // ==========================================================
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.equalsKey != null && Keyboard.current.equalsKey.isPressed)
+                    ApplyScaleChange(scaleSpeed * Time.deltaTime);
+
+                if (Keyboard.current.minusKey != null && Keyboard.current.minusKey.isPressed)
+                    ApplyScaleChange(-scaleSpeed * Time.deltaTime);
+
+                if (Keyboard.current.leftArrowKey != null && Keyboard.current.leftArrowKey.wasPressedThisFrame)
+                    ChangeColor(-1);
+
+                if (Keyboard.current.rightArrowKey != null && Keyboard.current.rightArrowKey.wasPressedThisFrame)
+                    ChangeColor(1);
+            }
+
+            // ==========================================================
+            // --- MODO VR REAL (usa Input Actions del XRI) ---
+            // ==========================================================
+            InputAction thumbstickAction = null; // Joystick para editar (de la OTRA mano)
+
+            if (holdingInteractor.gameObject.name.Contains("Left"))
+            {
+                thumbstickAction = rightThumbstick.action; // Si agarro con izquierda, uso joystick derecho
+            }
+            else if (holdingInteractor.gameObject.name.Contains("Right"))
+            {
+                thumbstickAction = leftThumbstick.action; // Si agarro con derecha, uso joystick izquierdo
+            }
+
+            // Si no hay joystick asignado, salir
+            if (thumbstickAction == null) return;
+
+            // Leemos entrada del joystick
+            Vector2 input = thumbstickAction.ReadValue<Vector2>();
+
+            // --- ESCALAR (Eje vertical del joystick) ---
+            if (Mathf.Abs(input.y) > 0.3f) // Umbral ajustado
+            {
+                ApplyScaleChange(input.y * scaleSpeed * Time.deltaTime);
+            }
+
+            // --- CAMBIAR COLOR (Eje horizontal) ---
+            if (Mathf.Abs(input.x) > 0.8f && !joystickUsedX)
+            {
+                joystickUsedX = true;
+                if (input.x > 0) ChangeColor(1);
+                else ChangeColor(-1);
+            }
+            else if (Mathf.Abs(input.x) < 0.2f)
+            {
+                joystickUsedX = false;
+            }
+        }
+    }
+
+    // --------------------------------------------------------------
+    // FUNCIONES AUXILIARES
+    // --------------------------------------------------------------
+    void ApplyScaleChange(float scaleAmount)
+    {
+        Vector3 newScale = transform.localScale + (Vector3.one * scaleAmount);
+        newScale.x = Mathf.Clamp(newScale.x, 0.1f, 2.0f);
+        newScale.y = newScale.x;
+        newScale.z = 0.02f; // mantener grosor fijo
+        transform.localScale = newScale;
+        correctScale = newScale;
+
+        // Sincronizar escala en red
+        photonView.RPC("SyncScale", RpcTarget.OthersBuffered, newScale);
+    }
+
+    void ChangeColor(int direction)
+    {
+        currentColorIndex = (currentColorIndex + direction + availableColors.Length) % availableColors.Length;
+        photonView.RPC("SyncColor", RpcTarget.AllBuffered, currentColorIndex);
+    }
+
+    // --------------------------------------------------------------
+    // SINCRONIZACIÃ“N PHOTON
+    // --------------------------------------------------------------
+    [PunRPC]
+    void SyncScale(Vector3 newScale)
+    {
+        transform.localScale = newScale;
+        correctScale = newScale;
+    }
+
+    [PunRPC]
+    void SyncColor(int colorIndex)
+    {
+        currentColorIndex = colorIndex;
+        Color newColor = availableColors[currentColorIndex];
+        MeshRenderer meshRenderer = GetComponentInChildren<MeshRenderer>();
+        if (meshRenderer != null)
+        {
+            meshRenderer.material.color = newColor;
+        }
+    }
+
+    // --------------------------------------------------------------
+    // INTERACCIÃ“N XR
+    // --------------------------------------------------------------
+    void OnGrab(SelectEnterEventArgs args)
+    {
         rb.isKinematic = false;
         transform.SetParent(null);
+        holdingInteractor = args.interactorObject as XRBaseInteractor;
+
+        // âœ… Transferir ownership al jugador que agarra
+        if (!photonView.IsMine)
+            photonView.RequestOwnership();
+    }
+
+    void OnRelease(SelectExitEventArgs args)
+    {
+        holdingInteractor = null;
+        if (isTouchingPizarra && lastPizarraTouched != null)
+        {
+            Stick(lastPizarraTouched);
+        }
+        else
+        {
+            rb.isKinematic = false;
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        if(!isStuck && collision.gameObject.CompareTag("Pizarra"))
+        if (collision.gameObject.CompareTag("Pizarra"))
         {
-            isStuck=true;
-
-            //CONGELA EL RIGIBODY
-            rb.isKinematic = true;
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-
-            //POSICIONA EL POST TIS EN LA PIZARRA
-            ContactPoint contact = collision.contacts[0];
-            transform.position = contact.point + contact.normal * 0.01f;
-            transform.rotation = Quaternion.LookRotation(-contact.normal);
-
-            transform.SetParent(collision.transform);
-            if (correctScale != Vector3.zero) // Asegura que la escala haya sido guardada
-            {
-                transform.localScale = correctScale;
-            }
+            isTouchingPizarra = true;
+            lastPizarraTouched = collision.transform;
         }
-        
     }
 
-    // Pegar y despegar reuqerimientos cargados en post-its
-    public void Stick()
+    private void OnCollisionExit(Collision collision)
     {
-        if (rb != null)
+        if (collision.gameObject.CompareTag("Pizarra"))
         {
-            rb.isKinematic = true;
-            Debug.Log(gameObject.name + " está ahora pegado (Kinematic).");
+            isTouchingPizarra = false;
+            lastPizarraTouched = null;
         }
     }
 
-    public void Unstick()
+    public void Stick(Transform parentSurface)
     {
-        if (rb != null)
+        rb.isKinematic = true;
+        rb.velocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        transform.SetParent(parentSurface);
+        if (correctScale != Vector3.zero)
         {
-            rb.isKinematic = false;
-            Debug.Log(gameObject.name + " ha sido despegado.");
+            transform.localScale = correctScale;
         }
     }
 
-    // ======================================================================
-    // ESTA ES LA NUEVA FUNCIÓN MÁGICA DE PHOTON
-    // ======================================================================
-    /// <summary>
-    /// Esta función es llamada automáticamente por Photon en TODOS los clientes
-    /// (incluido el Master Client) justo cuando se crea este objeto.
-    /// </summary>
+    // --------------------------------------------------------------
+    // INICIALIZACIÃ“N PHOTON
+    // --------------------------------------------------------------
     public void OnPhotonInstantiate(PhotonMessageInfo info)
     {
-        // 1. Recibimos los datos de instanciación (el texto y la escala)
         object[] data = info.photonView.InstantiationData;
         if (data != null)
         {
             if (data.Length > 0)
             {
-                // Asignamos el texto
                 string requirementText = (string)data[0];
                 TMP_InputField postItInputField = GetComponentInChildren<TMP_InputField>();
                 if (postItInputField != null)
-                {
                     postItInputField.text = requirementText;
-                }
             }
             if (data.Length > 1)
             {
-                // Asignamos la escala
-                //transform.localScale = (Vector3)data[1];
                 correctScale = (Vector3)data[1];
             }
         }
 
-        // 2. Buscamos la pizarra en la escena
-        // (Asegúrate de que tu pizarra tenga el Tag "Pizarra")
-        Transform whiteboardParent = GameObject.FindGameObjectWithTag("Pizarra").transform;
+        // Color inicial y sincronizaciÃ³n global
+        GetComponentInChildren<MeshRenderer>().material.color = availableColors[currentColorIndex];
+        photonView.RPC("SyncColor", RpcTarget.OthersBuffered, currentColorIndex);
 
-        // 3. Lo emparentamos y lo "pegamos"
+        Transform whiteboardParent = GameObject.FindGameObjectWithTag("Pizarra").transform;
         if (whiteboardParent != null)
         {
-            transform.SetParent(whiteboardParent);
-            if (correctScale != Vector3.zero)
-            {
-                transform.localScale = correctScale;
-            }
-            // Como ya fue creado en la posición y rotación correctas,
-            // solo necesitamos hacerlo cinemático para que se "pegue".
-            isStuck = true;
-            rb.isKinematic = true;
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
-        else
-        {
-            Debug.LogError("StickyNote no pudo encontrar un objeto con el Tag 'Pizarra' al instanciarse.");
+            Stick(whiteboardParent);
         }
     }
 }

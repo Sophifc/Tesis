@@ -1812,6 +1812,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b751aeb21373e4c45b74b8b4608d812b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  availableColors:
+  - {r: 1, g: 1, b: 0.8, a: 1}
+  - {r: 1, g: 0.8, b: 1, a: 1}
+  - {r: 0.8, g: 1, b: 1, a: 1}
+  scaleSpeed: 0.5
+  leftThumbstick:
+    m_UseReference: 0
+    m_Action:
+      m_Name: 
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 28ffe901-ea2b-4c11-a11d-2cb49922a6fc
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: 0}
+  rightThumbstick:
+    m_UseReference: 0
+    m_Action:
+      m_Name: 
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 6f850c96-9ca1-4f2d-8542-177a7ab255c0
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: 0}
+  simulatorMode: 1
 --- !u!1 &698019552
 GameObject:
   m_ObjectHideFlags: 0
@@ -4103,6 +4133,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3372290058704423448, guid: eaa1539f18f6b2944a203a6fc41df26d,
+        type: 3}
+      propertyPath: sceneViewId
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7106706111114848609, guid: eaa1539f18f6b2944a203a6fc41df26d,
         type: 3}
