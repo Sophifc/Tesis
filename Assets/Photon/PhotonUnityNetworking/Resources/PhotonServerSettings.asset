@@ -42,6 +42,12 @@ MonoBehaviour:
   - Rpc_LoadRequirements
   - SyncColor
   - SyncScale
+  - SyncText
+  - SetAvatarColor
+  - RPCSetGrabbed
+  - RPCStick
+  - RPC_OnGrabObject
+  - RPC_OnReleaseObject
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
