@@ -65,6 +65,7 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
     private Transform grabbedObjectRight = null;
     private float leftGripValue = 0f;
     private float rightGripValue = 0f;
+    private bool hideLocalAvatar;
 
     // ====================================================================
     // INICIALIZACIÓN
@@ -87,23 +88,17 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
         if (leftHand != null) leftHandOriginalScale = leftHand.localScale;
         if (rightHand != null) rightHandOriginalScale = rightHand.localScale;
 
-        // ✅ NUEVO: Guardar colores originales de las manos
-        if (leftHand != null)
-        {
-            MeshRenderer leftRenderer = leftHand.GetComponentInChildren<MeshRenderer>();
-            if (leftRenderer != null)
-                originalLeftColor = leftRenderer.material.color;
-        }
-        if (rightHand != null)
-        {
-            MeshRenderer rightRenderer = rightHand.GetComponentInChildren<MeshRenderer>();
-            if (rightRenderer != null)
-                originalRightColor = rightRenderer.material.color;
-        }
-
         if (isLocalPlayer)
         {
-            InitializeLocalPlayer();
+            // ✅ NUEVO: El avatar local se oculta COMPLETAMENTE
+            if (hideLocalAvatar)
+            {
+                HideLocalAvatar();
+            }
+            else
+            {
+                InitializeLocalPlayer();
+            }
         }
         else
         {
@@ -116,19 +111,74 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
             nameText.text = photonView.Owner.NickName;
             nameText.color = Color.white;
 
-            // ✅ Ocultar nombre propio (opcional)
+            // Ocultar nombre propio
             if (isLocalPlayer)
             {
                 nameText.gameObject.SetActive(false);
             }
         }
 
-        // Asignar color al azar o por ID
-        AssignPlayerColor();
+        // Asignar color al azar o por ID (solo para avatares remotos)
+        if (!isLocalPlayer)
+        {
+            AssignPlayerColor();
+        }
 
         if (showDebugInfo)
         {
             Debug.Log($"✅ Avatar {photonView.Owner.NickName} completamente inicializado");
+        }
+    }
+
+    /// <summary>
+    /// Oculta COMPLETAMENTE el avatar local (el jugador solo ve los mandos VR)
+    /// </summary>
+    void HideLocalAvatar()
+    {
+        if (showDebugInfo)
+            Debug.Log("👻 Ocultando avatar local completamente (jugador solo verá mandos VR)");
+
+        // Ocultar TODOS los renderers
+        MeshRenderer[] allMeshRenderers = GetComponentsInChildren<MeshRenderer>(true);
+        foreach (var r in allMeshRenderers)
+        {
+            r.enabled = false;
+        }
+
+        SkinnedMeshRenderer[] allSkinnedRenderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var r in allSkinnedRenderers)
+        {
+            r.enabled = false;
+        }
+
+        // Buscar el XR Origin
+        var xrOrigin = FindObjectOfType<Unity.XR.CoreUtils.XROrigin>();
+        if (xrOrigin != null)
+        {
+            xrCamera = xrOrigin.Camera.transform;
+
+            // Buscar controladores
+            foreach (var controller in xrOrigin.GetComponentsInChildren<ActionBasedController>())
+            {
+                if (controller.name.Contains("Left"))
+                {
+                    xrLeftHand = controller.transform;
+                    leftController = controller.GetComponent<XRController>();
+                }
+                else if (controller.name.Contains("Right"))
+                {
+                    xrRightHand = controller.transform;
+                    rightController = controller.GetComponent<XRController>();
+                }
+            }
+
+            if (showDebugInfo)
+            {
+                Debug.Log($"✅ Avatar local oculto");
+                Debug.Log($"   XR Origin encontrado: {xrOrigin.name}");
+                Debug.Log($"   Mando izquierdo: {(xrLeftHand != null ? "✓" : "✗")}");
+                Debug.Log($"   Mando derecho: {(xrRightHand != null ? "✓" : "✗")}");
+            }
         }
     }
 
@@ -166,35 +216,74 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
         }
 
         // ✅ 4. OCULTAR TODO EL CUERPO EXCEPTO LAS MANOS
-        // Estrategia simple: Ocultar TODO y luego mostrar solo las manos
+        // Estrategia: Ocultar TANTO MeshRenderer COMO SkinnedMeshRenderer
 
-        // Paso 1: Ocultar TODOS los renderers del avatar
-        MeshRenderer[] allRenderers = GetComponentsInChildren<MeshRenderer>(true);
-        foreach (var r in allRenderers)
+        if (showDebugInfo)
+            Debug.Log("🔍 Ocultando cuerpo local...");
+
+        // Paso 1: Ocultar TODOS los MeshRenderer
+        MeshRenderer[] allMeshRenderers = GetComponentsInChildren<MeshRenderer>(true);
+        foreach (var r in allMeshRenderers)
         {
             r.enabled = false;
         }
 
-        // Paso 2: Mostrar SOLO los renderers de las manos
+        // Paso 2: Ocultar TODOS los SkinnedMeshRenderer
+        SkinnedMeshRenderer[] allSkinnedRenderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var r in allSkinnedRenderers)
+        {
+            r.enabled = false;
+        }
+
+        if (showDebugInfo)
+        {
+            Debug.Log($"   MeshRenderers ocultados: {allMeshRenderers.Length}");
+            Debug.Log($"   SkinnedMeshRenderers ocultados: {allSkinnedRenderers.Length}");
+        }
+
+        // Paso 3: Mostrar SOLO los renderers de las manos
+        int leftHandRenderers = 0;
+        int rightHandRenderers = 0;
+
         if (leftHand != null)
         {
-            MeshRenderer[] leftRenderers = leftHand.GetComponentsInChildren<MeshRenderer>(true);
-            foreach (var r in leftRenderers)
+            // MeshRenderer
+            MeshRenderer[] leftMeshRenderers = leftHand.GetComponentsInChildren<MeshRenderer>(true);
+            foreach (var r in leftMeshRenderers)
             {
                 r.enabled = true;
+                leftHandRenderers++;
+            }
+
+            // SkinnedMeshRenderer
+            SkinnedMeshRenderer[] leftSkinnedRenderers = leftHand.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            foreach (var r in leftSkinnedRenderers)
+            {
+                r.enabled = true;
+                leftHandRenderers++;
             }
         }
 
         if (rightHand != null)
         {
-            MeshRenderer[] rightRenderers = rightHand.GetComponentsInChildren<MeshRenderer>(true);
-            foreach (var r in rightRenderers)
+            // MeshRenderer
+            MeshRenderer[] rightMeshRenderers = rightHand.GetComponentsInChildren<MeshRenderer>(true);
+            foreach (var r in rightMeshRenderers)
             {
                 r.enabled = true;
+                rightHandRenderers++;
+            }
+
+            // SkinnedMeshRenderer
+            SkinnedMeshRenderer[] rightSkinnedRenderers = rightHand.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            foreach (var r in rightSkinnedRenderers)
+            {
+                r.enabled = true;
+                rightHandRenderers++;
             }
         }
 
-        // ✅ NUEVO: Resaltar las manos propias si está activado
+        // ✅ Resaltar las manos propias si está activado
         if (highlightOwnHands)
         {
             SetHandColor(leftHand, ownHandsColor);
@@ -206,8 +295,8 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
             Debug.Log($"✅ Avatar LOCAL configurado:");
             Debug.Log($"   - Todo el cuerpo OCULTO");
             Debug.Log($"   - Solo manos VISIBLES");
-            Debug.Log($"   - Renderers de mano izquierda: {(leftHand != null ? leftHand.GetComponentsInChildren<MeshRenderer>().Length : 0)}");
-            Debug.Log($"   - Renderers de mano derecha: {(rightHand != null ? rightHand.GetComponentsInChildren<MeshRenderer>().Length : 0)}");
+            Debug.Log($"   - Renderers de mano izquierda: {leftHandRenderers}");
+            Debug.Log($"   - Renderers de mano derecha: {rightHandRenderers}");
         }
 
         // 5. Ocultar rayos láser locales para que no molesten (opcional)
@@ -240,13 +329,20 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
     }
 
     /// <summary>
-    /// Cambia el color de una mano
+    /// Cambia el color de una mano (soporta MeshRenderer y SkinnedMeshRenderer)
     /// </summary>
     void SetHandColor(Transform hand, Color color)
     {
         if (hand == null) return;
 
+        // Cambiar color en MeshRenderer
         foreach (var r in hand.GetComponentsInChildren<MeshRenderer>())
+        {
+            r.material.color = color;
+        }
+
+        // Cambiar color en SkinnedMeshRenderer
+        foreach (var r in hand.GetComponentsInChildren<SkinnedMeshRenderer>())
         {
             r.material.color = color;
         }
@@ -255,8 +351,16 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
     void InitializeRemotePlayer()
     {
         // Asegurar que el avatar remoto sea completamente visible
-        MeshRenderer[] allRenderers = GetComponentsInChildren<MeshRenderer>(true);
-        foreach (var r in allRenderers)
+        // TANTO MeshRenderer COMO SkinnedMeshRenderer
+
+        MeshRenderer[] allMeshRenderers = GetComponentsInChildren<MeshRenderer>(true);
+        foreach (var r in allMeshRenderers)
+        {
+            r.enabled = true;
+        }
+
+        SkinnedMeshRenderer[] allSkinnedRenderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var r in allSkinnedRenderers)
         {
             r.enabled = true;
         }
@@ -265,7 +369,8 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
         {
             Debug.Log($"✅ Avatar REMOTO configurado:");
             Debug.Log($"   - Todo el cuerpo VISIBLE");
-            Debug.Log($"   - Total de renderers: {allRenderers.Length}");
+            Debug.Log($"   - MeshRenderers: {allMeshRenderers.Length}");
+            Debug.Log($"   - SkinnedMeshRenderers: {allSkinnedRenderers.Length}");
         }
     }
 
@@ -503,8 +608,14 @@ public class PlayerAvatarController : MonoBehaviourPunCallbacks, IPunObservable
 
     void SetColor(Color c)
     {
-        // Pintar todos los renderers del avatar
+        // Pintar todos los MeshRenderer del avatar
         foreach (var r in GetComponentsInChildren<MeshRenderer>())
+        {
+            r.material.color = c;
+        }
+
+        // Pintar todos los SkinnedMeshRenderer del avatar
+        foreach (var r in GetComponentsInChildren<SkinnedMeshRenderer>())
         {
             r.material.color = c;
         }

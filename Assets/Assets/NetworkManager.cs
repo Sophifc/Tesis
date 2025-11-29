@@ -1,138 +1,94 @@
-using UnityEngine;
-//using UnityEngine.UI;
+Ôªøusing UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
-using TMPro;
-using System.Collections; // <-- A—ADE ESTA LÕNEA para Corutinas
-using UnityEngine.XR.Management; // <-- A—ADE ESTA LÕNEA para controlar XR
 
-// Heredamos de MonoBehaviourPunCallbacks para recibir eventos de Photon autom·ticamente
 public class NetworkManager : MonoBehaviourPunCallbacks
 {
-    [Header("UI Login")]
-    public TMP_InputField playerNameInput;
-    public TMP_InputField roomNameInput;
+    [Header("Configuraci√≥n de Archivo")]
+    public static string FilePathToLoad;
 
+    [Header("Debug")]
+    public bool showDebugLogs = true;
 
-    public static string FilePathToLoad = "";
+    private XROriginManager xrOriginManager;
 
-    [Header("UI Carga de Archivo")]
-    public TMP_InputField filePathInput;
-    // Para crear o unirse a una sala
-
-
+    void Awake()
+    {
+        DontDestroyOnLoad(gameObject);
+        PhotonNetwork.AutomaticallySyncScene = true;
+    }
 
     void Start()
     {
-        // Conecta al servidor maestro de Photon al iniciar el juego
-        Debug.Log("Conectando a Photon...");
-        PhotonNetwork.ConnectUsingSettings();
-    }
+        // Buscar el XR Origin Manager en la escena
+        xrOriginManager = FindObjectOfType<XROriginManager>();
 
-    // Esta funciÛn se llama autom·ticamente cuando nos conectamos al servidor maestro
-    public override void OnConnectedToMaster()
-    {
-        Debug.Log("°Conectado al Servidor Maestro de Photon!");
-        // Habilitamos los botones de la UI una vez conectados
-        PhotonNetwork.AutomaticallySyncScene = true; // Sincroniza la escena para todos
-    }
-
-    // --- FUNCIONES PARA LOS BOTONES DE LA UI ---
-
-    public void CreateRoom()
-    {
-        if (string.IsNullOrEmpty(playerNameInput.text) || string.IsNullOrEmpty(roomNameInput.text))
+        if (xrOriginManager == null && showDebugLogs)
         {
-            Debug.LogWarning("El nombre de usuario y el cÛdigo de la sala no pueden estar vacÌos.");
-            return;
+            Debug.LogWarning("‚ö†Ô∏è XROriginManager no encontrado. Aseg√∫rate de agregarlo al XR Origin.");
         }
 
-        if (!string.IsNullOrEmpty(filePathInput.text))
+        // Conectar a Photon si no est√° conectado
+        if (!PhotonNetwork.IsConnected)
         {
-            FilePathToLoad = filePathInput.text.Trim('"');
-        }
+            if (showDebugLogs)
+                Debug.Log("üì° Conectando a Photon...");
 
-        PhotonNetwork.NickName = playerNameInput.text; // Guardamos el nombre del jugador
-        RoomOptions roomOptions = new RoomOptions();
-        roomOptions.MaxPlayers = 10; // LÌmite de 10 jugadores por sala
-        PhotonNetwork.CreateRoom(roomNameInput.text, roomOptions);
-        Debug.Log("Creando sala: " + roomNameInput.text);
-    }
-
-    public void JoinRoom()
-    {
-        if (string.IsNullOrEmpty(playerNameInput.text) || string.IsNullOrEmpty(roomNameInput.text))
-        {
-            Debug.LogWarning("El nombre de usuario y el cÛdigo de la sala no pueden estar vacÌos.");
-            return;
-        }
-
-        PhotonNetwork.NickName = playerNameInput.text;
-        PhotonNetwork.JoinRoom(roomNameInput.text);
-        Debug.Log("UniÈndose a la sala: " + roomNameInput.text);
-    }
-
-    /// <summary>
-    /// Cierra la aplicaciÛn del juego por completo.
-    /// </summary>
-    public void QuitGame()
-    {
-        Debug.Log("Cerrando la aplicaciÛn...");
-        Application.Quit();
-    }
-
-    // --- CALLBACKS DE PHOTON ---
-
-    // Se llama cuando nos unimos exitosamente a una sala
-    public override void OnJoinedRoom()
-    {
-        Debug.Log("°Te has unido a la sala: " + PhotonNetwork.CurrentRoom.Name + "!");
-        Debug.Log("Tu nombre es: " + PhotonNetwork.NickName);
-
-        // Cargamos la escena principal para todos los jugadores
-        // Solo el "MasterClient" (el creador de la sala) puede cargar la escena
-        //if (PhotonNetwork.IsMasterClient)
-        //{
-        //    PhotonNetwork.LoadLevel("SampleScene"); // Reemplaza "SampleScene" con el nombre de tu escena principal
-        //}
-        StartCoroutine(StartVRAndLoadScene());
-
-    }
-
-    // ======================================================================
-    // ESTA ES LA NUEVA FUNCI”N PARA ACTIVAR VR
-    // ======================================================================
-    IEnumerator StartVRAndLoadScene()
-    {
-        Debug.Log("Iniciando el sistema XR (VR)...");
-
-        // 1. Inicializa el cargador de XR
-        yield return XRGeneralSettings.Instance.Manager.InitializeLoader();
-
-        // 2. Inicia los subsistemas de XR (activa la VR)
-        if (XRGeneralSettings.Instance.Manager.activeLoader != null)
-        {
-            XRGeneralSettings.Instance.Manager.StartSubsystems();
-            yield return null; // Espera un frame para que se estabilice
-            Debug.Log("°VR Iniciada! El usuario debe ponerse el casco.");
+            PhotonNetwork.ConnectUsingSettings();
         }
         else
         {
-            Debug.LogWarning("No se pudo iniciar el cargador de XR. Cargando escena sin VR.");
-        }
+            if (showDebugLogs)
+                Debug.Log("‚úÖ Ya conectado a Photon");
 
-        // 3. Ahora que VR est· activa, cargamos la escena principal
-        // Solo el MasterClient puede cargar la escena
-        if (PhotonNetwork.IsMasterClient)
-        {
-            PhotonNetwork.LoadLevel("SampleScene"); // Reemplaza "SampleScene" con el nombre de tu escena principal
+            OnConnectedToMaster();
         }
     }
 
-
-    // Se llama si falla la uniÛn a una sala
-    public override void OnJoinRoomFailed(short returnCode, string message)
+    public override void OnConnectedToMaster()
     {
-        Debug.LogError("Fallo al unirse a la sala: " + message);
+        if (showDebugLogs)
+            Debug.Log("‚úÖ Conectado a Photon Master Server");
+
+        // Unirse o crear sala
+        RoomOptions roomOptions = new RoomOptions();
+        roomOptions.MaxPlayers = 10;
+        PhotonNetwork.JoinOrCreateRoom("MainRoom", roomOptions, TypedLobby.Default);
+    }
+
+    public override void OnJoinedRoom()
+    {
+        if (showDebugLogs)
+        {
+            Debug.Log($"‚úÖ Unido a sala: {PhotonNetwork.CurrentRoom.Name}");
+            Debug.Log($"   Jugadores en sala: {PhotonNetwork.CurrentRoom.PlayerCount}");
+        }
+
+        // Notificar al XR Origin Manager que puede crear el avatar
+        if (xrOriginManager != null)
+        {
+            xrOriginManager.OnPhotonConnected();
+        }
+        else
+        {
+            Debug.LogError("‚ùå XROriginManager no encontrado. No se crear√° avatar visual.");
+        }
+    }
+
+    public override void OnPlayerEnteredRoom(Player newPlayer)
+    {
+        if (showDebugLogs)
+            Debug.Log($"üë§ Jugador entr√≥: {newPlayer.NickName}");
+    }
+
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        if (showDebugLogs)
+            Debug.Log($"üëã Jugador sali√≥: {otherPlayer.NickName}");
+    }
+
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        Debug.LogWarning($"‚ö†Ô∏è Desconectado de Photon: {cause}");
     }
 }
